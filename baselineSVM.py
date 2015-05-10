@@ -1,23 +1,23 @@
-from sklearn.svm import LinearSVC
+from sklearn.linear_model import SGDClassifier
 import validation as vld
 import loadFile
 import numpy as np
 
-reg = 0.1
+reg = 0.0001
 
 
 def single_train(data, label):
-    clf = LinearSVC(C=reg)
+    clf = SGDClassifier(loss='hinge', penalty='l2', alpha=reg)
     return clf.fit(data, label)
 
 
 def train_both(data, label):
-    clf1 = LinearSVC(C=reg)
-    clf2 = LinearSVC(C=reg)
+    clf1 = SGDClassifier(loss='hinge', penalty='l2', alpha=reg)
+    clf2 = SGDClassifier(loss='hinge', penalty='l2', alpha=reg)
     return clf1.fit(data, label[:, 0]), clf2.fit(data, label[:, 1])
 
 if __name__ == '__main__':
-    total_data = loadFile.file2mat('./data/final_review_set.csv')
+    total_data = loadFile.file2mat_bag_of_wordvec('./data/final_review_set.csv')
     shuffled_data = vld.data_reshuffle(total_data)
     train_mat = shuffled_data[0]
     aspect_label = shuffled_data[1]

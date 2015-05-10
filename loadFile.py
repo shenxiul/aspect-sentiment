@@ -68,9 +68,43 @@ def file2mat(filename):
     return tfidf, aspect_label, rating_label
 
 
+def load_wordvec(filename):
+    wordvec_dic = {}
+    with open(filename, 'r') as wordvec_file:
+        for i, line in enumerate(wordvec_file):
+            content = line.split()
+            wordvec_dic[content[0]] = np.array(map(float, content[1:]))
+            if i % 10000 == 0:
+                print i
+    return wordvec_dic
+
+
+def bag_of_wordvec(tokens, wordvec_dic, dimension):
+    vec = np.zeros(dimension)
+    for token in tokens:
+        try:
+            vec += wordvec_dic[token]
+        except KeyError:
+            pass
+            # print "No token %s" % token
+    return vec
+
+
+def file2mat_bag_of_wordvec(filename):
+    dimension = 300
+    wordvec_dic = load_wordvec('./data/glove.6B.300d.txt')
+    data = load(filename)
+    tokenize(data)
+    reviews = [each_data['review'] for each_data in data]
+    bag_of_wordvec_mat = np.zeros((len(reviews), dimension))
+    for i in xrange(bag_of_wordvec_mat.shape[0]):
+        bag_of_wordvec_mat[i] = bag_of_wordvec(reviews[i], wordvec_dic, dimension)
+    aspect_label = collect_aspect_label(data)
+    rating_label = collect_rating_label(data)
+    return bag_of_wordvec_mat, aspect_label, rating_label
+
+
 if __name__ == '__main__':
+    print file2mat_bag_of_wordvec('./data/final_review_set.csv')
     pass
-    # tokenize(data)
-    # reviews_tokenized = [each_data['review'] for each_data in data]
-    # voc = build_vocabulary(reviews_tokenized)
 
