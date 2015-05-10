@@ -1,61 +1,34 @@
 import loadFile
-import nltk
+from sklearn.naive_bayes import MultinomialNB
+import random
 import numpy as np
-from sklearn.feature_extraction.text import TfidfTransformer
-from sklearn.feature_extraction.text import CountVectorizer
+from validation import cross_validation
 
 
-aspect_dic = {"overall":    0,
-              "appearance": 1,
-              "taste":      2,
-              "palate":     3,
-              "aroma":      4}
+def naive_bayes_single_train(data, label):
+    clf = MultinomialNB()
+    return clf.fit(data, label)
 
 
-def tokenize(data_set):
-    for i in xrange(len(data_set)):
-        data_set[i]['review'] = nltk.word_tokenize(data_set[i]['review'])
-    return
+def naive_bayes_single_test(data, label, model):
+    prediction = model.predict(data)
+    return float((prediction == label).sum()) / len(label)
 
 
-def build_vocabulary(review_set):
-    vocabulary = {}
-    index = 0
-    for review in review_set:
-        review = set(review)
-        for word in review:
-            if word not in vocabulary:
-                vocabulary[word] = {"index": index, "df": 1}
-                index += 1
-            else:
-                vocabulary[word]["df"] += 1
-    return vocabulary
-
-
-def collect_aspect_label(data_set):
-    label = np.zeros(len(data_set), dtype='int32')
-    for i, data_entry in enumerate(data_set):
-        label[i] = aspect_dic[data_entry['aspect']]
-    return label
-
-
-def collect_rating_label(data_set):
-    label = np.zeros(len(data_set), dtype='int32')
-    for i, data_entry in enumerate(data_set):
-        label[i] = int(data_entry['rating']) - 1
-    return label
+def data_reshuffle(data_list):
+    data_len = data_list[0].shape[0]
+    index = range(data_len)
+    random.shuffle(index)
+    return [data[index] for data in data_list]
 
 if __name__ == '__main__':
-    transformer = TfidfTransformer()
-    vectorizer = CountVectorizer(min_df=1)
-    data = loadFile.load('./data/final_review_set.csv')
-    reviews = [each_data['review'] for each_data in data]
-    X = vectorizer.fit_transform(reviews)
-    tfidf = transformer.fit_transform(X)
-
-    aspect_label = collect_aspect_label(data)
-    rating_label = collect_rating_label(data)
-
-    # tokenize(data)
-    # reviews_tokenized = [each_data['review'] for each_data in data]
-    # voc = build_vocabulary(reviews_tokenized)
+    total_data = loadFile.file2mat('./data/final_review_set.csv')
+    shuffled_data = data_reshuffle(total_data)
+    train_mat = shuffled_data[0]
+    aspect_label = shuffled_data[1]
+    rating_label = shuffled_data[2]
+    label_mat = np.vstack((aspect_label, rating_label)).T
+    single_label = aspect_label * len(loadFile.aspect_dic) + rating_label
+    print cross_validation(train_mat, aspect_label, naive_bayes_single_train, naive_bayes_single_test)
+    print cross_validation(train_mat, rating_label, naive_bayes_single_train, naive_bayes_single_test)
+    print cross_validation(train_mat, single_label, naive_bayes_single_train, naive_bayes_single_test)
