@@ -1,17 +1,19 @@
-from sklearn.naive_bayes import MultinomialNB
+from sklearn.svm import LinearSVC
 import validation as vld
 import loadFile
 import numpy as np
 
+reg = 0.1
+
 
 def single_train(data, label):
-    clf = MultinomialNB()
+    clf = LinearSVC(C=reg)
     return clf.fit(data, label)
 
 
 def train_both(data, label):
-    clf1 = MultinomialNB()
-    clf2 = MultinomialNB()
+    clf1 = LinearSVC(C=reg)
+    clf2 = LinearSVC(C=reg)
     return clf1.fit(data, label[:, 0]), clf2.fit(data, label[:, 1])
 
 if __name__ == '__main__':
