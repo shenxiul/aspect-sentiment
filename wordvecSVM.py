@@ -1,4 +1,5 @@
 from sklearn.linear_model import SGDClassifier
+from sklearn.kernel_approximation import RBFSampler
 import validation as vld
 import loadFile
 import numpy as np
@@ -17,8 +18,10 @@ def train_both(data, label):
     return clf1.fit(data, label[:, 0]), clf2.fit(data, label[:, 1])
 
 if __name__ == '__main__':
-    total_data = loadFile.file2mat('./data/final_review_set.csv')
+    total_data = loadFile.file2mat_bag_of_wordvec('./data/final_review_set.csv')
     shuffled_data = vld.data_reshuffle(total_data)
+    # rbf_feature = RBFSampler(gamma=10)
+    # train_mat = rbf_feature.fit_transform(shuffled_data[0])
     train_mat = shuffled_data[0]
     aspect_label = shuffled_data[1]
     rating_label = shuffled_data[2]

@@ -15,7 +15,7 @@ def train_both(data, label):
     return clf1.fit(data, label[:, 0]), clf2.fit(data, label[:, 1])
 
 if __name__ == '__main__':
-    total_data = loadFile.file2mat_bag_of_wordvec('./data/final_review_set.csv')
+    total_data = loadFile.file2mat('./data/final_review_set.csv')
     shuffled_data = vld.data_reshuffle(total_data)
     train_mat = shuffled_data[0]
     aspect_label = shuffled_data[1]
