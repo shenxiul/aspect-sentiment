@@ -57,7 +57,7 @@ def load(filename):
 
 def file2mat(filename):
     transformer = TfidfTransformer()
-    vectorizer = CountVectorizer(min_df=1)
+    vectorizer = CountVectorizer(min_df=1, ngram_range=(1,3))
     data = load(filename)
     reviews = [each_data['review'] for each_data in data]
     bag_of_word = vectorizer.fit_transform(reviews)
@@ -103,8 +103,6 @@ def file2mat_bag_of_wordvec(filename):
     rating_label = collect_rating_label(data)
     return bag_of_wordvec_mat, aspect_label, rating_label
 
-
 if __name__ == '__main__':
     print file2mat_bag_of_wordvec('./data/final_review_set.csv')
     pass
-
