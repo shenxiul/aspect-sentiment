@@ -52,6 +52,7 @@ def load(filename):
     data_set = []
     for line in csv_reader:
         data_set.append({'review': line[0].lower(), 'aspect': line[1], 'rating': float(line[2])})
+    input_file.close()
     return data_set
 
 
