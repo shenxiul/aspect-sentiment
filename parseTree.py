@@ -7,21 +7,12 @@ from unidecode import unidecode
 import json
 import random
 
-#os.environ['JAVA_HOME'] = 'C://Program Files//Java//jdk1.8.0_45//bin'
-#os.environ['STANFORD_PARSER'] = 'D://stanford-parser-full-2015-04-20'
-#os.environ['STANFORD_MODELS'] = 'D://stanford-parser-full-2015-04-20'
+os.environ['JAVA_HOME'] = 'C://Program Files//Java//jdk1.8.0_45//bin'
+os.environ['STANFORD_PARSER'] = 'D://stanford-parser-full-2015-04-20'
+os.environ['STANFORD_MODELS'] = 'D://stanford-parser-full-2015-04-20'
 
-os.environ['STANFORD_PARSER'] = '../stanford-parser-full-2015-04-20'
-os.environ['STANFORD_MODELS'] = '../stanford-parser-full-2015-04-20'
-
-
-class Node(object):
-    def __init__(self, parent=None):
-        self.parent = parent
-        self.left = None
-        self.right = None
-        self.word = None
-        self.is_leaf = False
+#os.environ['STANFORD_PARSER'] = '../stanford-parser-full-2015-04-20'
+#os.environ['STANFORD_MODELS'] = '../stanford-parser-full-2015-04-20'
 
 
 def parse_sent(parser, sent_list):
