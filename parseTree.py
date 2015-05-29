@@ -5,6 +5,7 @@ import os
 import pdb
 from unidecode import unidecode
 import json
+import random
 
 #os.environ['JAVA_HOME'] = 'C://Program Files//Java//jdk1.8.0_45//bin'
 #os.environ['STANFORD_PARSER'] = 'D://stanford-parser-full-2015-04-20'
@@ -60,6 +61,13 @@ def binarize(tree):
     nltk.tree.Tree.chomsky_normal_form(tree)
     return tree
 
+
+def dump_to_file(filename, dataset):
+    with open(filename, 'w') as handle:
+        for data in dataset:
+            handle.write(json.dumps(data) + '\n')
+    return
+
 if __name__ == '__main__':
     parser = nltk.parse.stanford.StanfordParser()
     data_set = load('./data/final_review_set.csv')
@@ -77,9 +85,14 @@ if __name__ == '__main__':
     dev_sample = int(len(data_set) * 0.1)
     test_sample = len(data_set) - train_sample - dev_sample
     data_idx = list(range(len(data_set)))
-    train_data = data[:train_sample]
-    dev_data = data[train_sample:train_sample+dev_sample]
-    test_data = data[train_sample+dev_sample:]
-    with open('./data/train.json', 'w') as train_file: json.dump(train_data, train_file)
-    with open('./data/dev.json', 'w') as dev_file: json.dump(dev_data, dev_file)
-    with open('./data/test.json', 'w') as test_file: json.dump(test_data, test_file)
+    random.seed(15)
+    random.shuffle(data_idx)
+    train_idx = data_idx[:train_sample]
+    dev_idx = data_idx[train_sample:train_sample+dev_sample]
+    test_idx = data_idx[train_sample+dev_sample:]
+    train_data = [data[i] for i in train_idx]
+    dev_data = [data[i] for i in dev_idx]
+    test_data = [data[i] for i in test_idx]
+    dump_to_file('./data/train.json', train_data)
+    dump_to_file('./data/dev.json', dev_data)
+    dump_to_file('./data/test.json', test_data)
