@@ -1,8 +1,9 @@
 import json
-import nltk.tree
-import loadFile
 import cPickle as pickle
-import collections
+
+import nltk.tree
+
+import loadFile
 
 UNK = "UNK"
 
@@ -14,6 +15,7 @@ class Node:
         self.right = None
         self.isLeaf = False
         self.word = None
+        self.hActs1 = None
 
     def __str__(self):
         if self.isLeaf:
@@ -26,6 +28,7 @@ class TreeSingleLabel:
     def __init__(self, tree, label, label_method):
         self.root = build_tree(nltk.tree.Tree.fromstring(tree))
         self.label = label_method(label)
+        self.probs = None
 
     def __str__(self):
         return str(self.label) + ' (' + str(self.root) + ')'
