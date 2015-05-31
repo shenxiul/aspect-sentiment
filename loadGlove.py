@@ -25,9 +25,3 @@ def load_batch(file_prefix):
 
 if __name__ == '__main__':
     load_batch('./data/glove.twitter.27B.25d')
-    # g_filename = './data/train.json'
-    # g_data = []
-    # with open(g_filename) as handle:
-    #     for line in handle:
-    #         g_data.append(json.loads(line))
-    #         g_data[-1]['tree'] = nltk.tree.Tree.fromstring(g_data[-1]['tree'])
