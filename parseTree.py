@@ -25,7 +25,7 @@ def load(filename):
     csv_reader = csv.reader(input_file)
     data_set = {}
     for line in csv_reader:
-        review = unidecode(line[0].decode('utf-8'))
+        review = unidecode(line[0].decode('utf-8')).lower()
         if not all(ord(c) < 128 for c in review): pdb.set_trace()
         if review not in data_set:
             data_set[review] = [{'aspect': line[1], 'rating': float(line[2])}]
