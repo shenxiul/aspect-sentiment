@@ -124,7 +124,7 @@ class RNTN:
     def back_prop(self, tree):
         deltas = tree.probs.copy()
         deltas[tree.label] -= 1.0
-        self.dWs += np.outer(deltas, tree.root.hActs1)
+        self.dWs += np.outer(deltas, tree.root.hActs1 * tree.mask)
         self.dbs += deltas
         deltas = deltas.dot(self.Ws) * tree.mask
         self.back_prop_node(tree.root, deltas)

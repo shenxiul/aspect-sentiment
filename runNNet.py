@@ -4,6 +4,7 @@ import cPickle as pickle
 import sgd as optimizer
 from rntn import RNTN
 from rnn import RNN
+from treeLSTM import TreeLSTM
 import time
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,6 +26,7 @@ def run(args=None):
 
     # Dimension
     parser.add_option("--wvecDim", dest="wvec_dim", type="int", default=30)
+    parser.add_option("--memDim", dest="mem_dim", type="int", default=30)
 
     parser.add_option("--outFile", dest="out_file", type="string", default="models/test.bin")
     parser.add_option("--inFile", dest="in_file", type="string", default="models/test.bin")
@@ -67,6 +69,8 @@ def run(args=None):
         nn = RNTN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho)
     elif opts.model == 'RNN':
         nn = RNN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho)
+    elif opts.model == 'TreeLSTM':
+        nn = TreeLSTM(opts.wvec_dim, opts.mem_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho)
     else:
         raise '%s is not a valid neural network so far only RNTN, RNN, RNN2, RNN3, and DCNN' % opts.model
 
@@ -116,6 +120,8 @@ def test(net_file, data_set, label_method, model='RNN', trees=None):
             nn = RNTN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch)
         elif model == 'RNN':
             nn = RNN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch)
+        elif opts.model == 'TreeLSTM':
+            nn = TreeLSTM(opts.wvec_dim, opts.mem_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho)
         else:
             raise '%s is not a valid neural network so far only RNTN, RNN, RNN2, RNN3, and DCNN' % opts.model
 
@@ -131,7 +137,7 @@ def test(net_file, data_set, label_method, model='RNN', trees=None):
 
     confusion = [[0 for i in range(nn.output_dim)] for j in range(nn.output_dim)]
     for i, j in zip(correct, guess): confusion[i][j] += 1
-    # makeconf(confusion)
+    makeconf(confusion)
 
     print "Cost %f, Acc %f" % (cost, correct_sum / float(len(correct)))
     return correct_sum / float(len(correct))
@@ -144,8 +150,12 @@ def makeconf(conf_arr):
         a = 0
         tmp_arr = []
         a = sum(i, 0)
-        for j in i:
-            tmp_arr.append(float(j) / float(a))
+        if a != 0:
+            for j in i:
+                tmp_arr.append(float(j) / float(a))
+        else:
+            for j in i:
+                tmp_arr.append(0)
         norm_conf.append(tmp_arr)
 
     fig = plt.figure()

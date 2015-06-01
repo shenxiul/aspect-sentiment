@@ -11,7 +11,6 @@ aspect_dic = {"overall":    0,
               "palate":     3,
               "aroma":      4}
 
-
 def tokenize(data_set):
     for i in xrange(len(data_set)):
         data_set[i]['review'] = nltk.word_tokenize(data_set[i]['review'])
@@ -42,6 +41,9 @@ def collect_aspect_label(data_set):
 def collect_rating_label(data_set):
     label = np.zeros(len(data_set), dtype='int32')
     for i, data_entry in enumerate(data_set):
+        #if data_entry['rating'] > 4:
+            #label[i] = 4
+        #else:
         label[i] = int(data_entry['rating']) - 1
     return label
 
@@ -66,6 +68,11 @@ def file2mat(filename):
 
     aspect_label = collect_aspect_label(data)
     rating_label = collect_rating_label(data)
+    print (rating_label == 0).sum()
+    print (rating_label == 1).sum()
+    print (rating_label == 2).sum()
+    print (rating_label == 3).sum()
+    print (rating_label == 4).sum()
     return tfidf, aspect_label, rating_label
 
 

@@ -6,4 +6,4 @@ src/*
 include/*
 Makefile
 *.pyc
-model/*
+models/*
