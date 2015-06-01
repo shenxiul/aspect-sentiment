@@ -1,9 +1,10 @@
 import numpy as np
 import collections
 import utility as nn
+import cPickle as pickle
 
 class RNN:
-    def __init__(self, wvec_dim, output_dim, num_words, mb_size=30, rho=1e-4):
+    def __init__(self, wvec_dim, output_dim, num_words, mb_size=30, rho=1e-3):
         self.wvec_dim = wvec_dim
         self.output_dim = output_dim
         self.num_words = num_words
@@ -89,7 +90,9 @@ class RNN:
     def forward_prop(self, tree):
         cost = self.forward_prop_node(tree.root)
         theta = self.Ws.dot(tree.root.hActs1) + self.bs
-        tree.probs = np.exp(theta - np.max(theta))
+        theta -= np.max(theta)
+        theta[theta < -300] = -300
+        tree.probs = np.exp(theta)
         tree.probs /= np.sum(tree.probs)
 
         cost += -np.log(tree.probs[tree.label])
@@ -113,11 +116,12 @@ class RNN:
         self.dWs += np.outer(deltas, tree.root.hActs1)
         self.dbs += deltas
         deltas = deltas.dot(self.Ws)
-        self.back_prob_node(self, tree.root, deltas)
+        self.back_prop_node(tree.root, deltas)
         pass
 
     def back_prop_node(self, node, error=None):
-        if error is not None: deltas += error
+        if error is not None: deltas = error
+        else: deltas = np.zeros(self.wvec_dim)
         if node.isLeaf:
             self.dL[node.word] += deltas
         else:
@@ -125,10 +129,10 @@ class RNN:
             self.dW += np.outer(deltas, np.hstack((node.left.hActs1, node.right.hActs1)))
             self.db += deltas
             deltas = deltas.dot(self.W)
-            self.backProp(node.left, deltas[:self.wvecDim])
-            self.backProp(node.right, deltas[self.wvecDim:])
+            self.back_prop_node(node.left, deltas[:self.wvec_dim])
+            self.back_prop_node(node.right, deltas[self.wvec_dim:])
 
-    def updateParams(self, scale, update, log=False):
+    def update_params(self, scale, update, log=False):
         """
         Updates parameters as
         p := p - scale * update.
@@ -148,19 +152,14 @@ class RNN:
         for j in dL.iterkeys():
             self.L[:, j] += scale * dL[j]
 
-    def toFile(self, fid):
-        import cPickle as pickle
-
+    def to_file(self, fid):
         pickle.dump(self.stack, fid)
 
-    def fromFile(self, fid):
-        import cPickle as pickle
-
+    def from_file(self, fid):
         self.stack = pickle.load(fid)
 
     def check_grad(self, data, epsilon=1e-6):
-
-        cost, grad = self.costAndGrad(data)
+        cost, grad = self.cost_and_grad(data)
 
         err1 = 0.0
         count = 0.0
@@ -171,7 +170,7 @@ class RNN:
             for i in xrange(W.shape[0]):
                 for j in xrange(W.shape[1]):
                     W[i, j] += epsilon
-                    costP, _ = self.costAndGrad(data)
+                    costP, _ = self.cost_and_grad(data)
                     W[i, j] -= epsilon
                     numGrad = (costP - cost) / epsilon
                     err = np.abs(dW[i, j] - numGrad)
@@ -191,7 +190,7 @@ class RNN:
         for j in dL.iterkeys():
             for i in xrange(L.shape[0]):
                 L[i, j] += epsilon
-                costP, _ = self.costAndGrad(data)
+                costP, _ = self.cost_and_grad(data)
                 L[i, j] -= epsilon
                 numGrad = (costP - cost) / epsilon
                 err = np.abs(dL[j][i] - numGrad)
@@ -205,16 +204,18 @@ class RNN:
 
 
 if __name__ == '__main__':
-    import tree as treeM
+    import loadTree as tree
 
-    train = treeM.loadTrees()
-    numW = len(treeM.loadWordMap())
+    train = tree.load_trees('./data/train.json', tree.pair_label)
+    training_word_map = tree.load_word_map()
+    numW = len(training_word_map)
+    tree.convert_trees(train, training_word_map)
 
-    wvecDim = 10
-    outputDim = 5
+    wvecDim = 20
+    outputDim = 25
 
-    rnn = RNN(wvecDim, outputDim, numW, mbSize=4)
-    rnn.initParams()
+    rnn = RNN(wvecDim, outputDim, numW, mb_size=4)
+    rnn.init_params()
 
     mbData = train[:4]
 

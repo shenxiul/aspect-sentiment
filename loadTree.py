@@ -124,6 +124,13 @@ def convert_trees(trees, word_map):
         traverse_tree(tree.root, nodeFn=map_words, args=word_map)
     return trees
 
+def load_all(data_set, label_method):
+    filename = './data' + data_set + '.json'
+    training_word_map = load_word_map()
+    trees = load_trees(filename, label_method)
+    convert_trees(trees, training_word_map)
+    return trees
+
 if __name__ == '__main__':
     train = load_trees('./data/train.json', pair_label)
     try:
