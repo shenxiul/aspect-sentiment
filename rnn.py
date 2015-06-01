@@ -14,6 +14,7 @@ class RNN:
 
     def init_params(self):
         np.random.seed(12341)
+        self.keep = 0.5
 
         # Word vectors
         self.L = np.random.randn(self.wvec_dim, self.num_words) * 0.01
@@ -64,7 +65,7 @@ class RNN:
 
         # Forward prop each tree in minibatch
         for tree in mbdata:
-            c, predict = self.forward_prop(tree)
+            c, predict = self.forward_prop(tree, test)
             cost += c
             guess.append(predict)
             correct.append(tree.label)
@@ -87,9 +88,13 @@ class RNN:
         return scale * cost, [self.dL, scale * (self.dW + self.rho * self.W), scale * self.db,
                               scale * (self.dWs + self.rho * self.Ws), scale * self.dbs]
 
-    def forward_prop(self, tree):
+    def forward_prop(self, tree, test=False):
         cost = self.forward_prop_node(tree.root)
-        theta = self.Ws.dot(tree.root.hActs1) + self.bs
+        if not test:
+            tree.mask = np.random.binomial(1, self.keep, self.wvec_dim)
+            theta = self.Ws.dot(tree.root.hActs1 * tree.mask) + self.bs
+        else:
+            theta = self.Ws.dot(tree.root.hActs1) * self.keep + self.bs
         theta -= np.max(theta)
         theta[theta < -300] = -300
         tree.probs = np.exp(theta)
@@ -115,7 +120,7 @@ class RNN:
         deltas[tree.label] -= 1.0
         self.dWs += np.outer(deltas, tree.root.hActs1)
         self.dbs += deltas
-        deltas = deltas.dot(self.Ws)
+        deltas = deltas.dot(self.Ws) * tree.mask
         self.back_prop_node(tree.root, deltas)
         pass
 
@@ -159,6 +164,7 @@ class RNN:
         self.stack = pickle.load(fid)
 
     def check_grad(self, data, epsilon=1e-6):
+        state =  np.random.get_state()
         cost, grad = self.cost_and_grad(data)
 
         err1 = 0.0
@@ -170,6 +176,7 @@ class RNN:
             for i in xrange(W.shape[0]):
                 for j in xrange(W.shape[1]):
                     W[i, j] += epsilon
+                    np.random.set_state(state)
                     costP, _ = self.cost_and_grad(data)
                     W[i, j] -= epsilon
                     numGrad = (costP - cost) / epsilon
@@ -190,6 +197,7 @@ class RNN:
         for j in dL.iterkeys():
             for i in xrange(L.shape[0]):
                 L[i, j] += epsilon
+                np.random.set_state(state)
                 costP, _ = self.cost_and_grad(data)
                 L[i, j] -= epsilon
                 numGrad = (costP - cost) / epsilon

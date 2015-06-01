@@ -24,7 +24,6 @@ def run(args=None):
     parser.add_option("--rho", dest="rho", type="float", default=1e-3)
 
     # Dimension
-    parser.add_option("--outputDim", dest="output_dim", type="int", default=5)
     parser.add_option("--wvecDim", dest="wvec_dim", type="int", default=30)
 
     parser.add_option("--outFile", dest="out_file", type="string", default="models/test.bin")
@@ -38,23 +37,27 @@ def run(args=None):
 
     evaluate_accuracy_while_training = True
 
+    if opts.label_method == 'rating':
+        label_method = tree.rating_label
+        opts.output_dim = 5
+    elif opts.label_method == 'aspect':
+        label_method = tree.aspect_label
+        opts.output_dim = 5
+    elif opts.label_method == 'pair':
+        label_method = tree.pair_label
+        opts.output_dim = 25
+    else:
+        raise '%s is not a valid labelling method.' % opts.label_method
+
     # Testing
     if opts.test:
-        test(opts.in_file, opts.data, opts.model)
+        test(opts.in_file, opts.data, label_method, opts.model)
         return
 
     print "Loading data..."
     train_accuracies = []
     dev_accuracies = []
     # load training data
-    if opts.label_method == 'rating':
-        label_method = tree.rating_label
-    elif opts.label_method == 'aspect':
-        label_method = tree.aspect_label
-    elif opts.label_method == 'pair':
-        label_method = tree.pair_label
-    else:
-        raise '%s is not a valid labelling method.' % opts.label_method
     trees = tree.load_trees('./data/train.json', label_method)
     training_word_map = tree.load_word_map()
     opts.num_words = len(training_word_map)
@@ -126,7 +129,7 @@ def test(net_file, data_set, label_method, model='RNN', trees=None):
     for i in xrange(0, len(correct)):
         correct_sum += (guess[i] == correct[i])
 
-    confusion = [[0 for i in range(5)] for j in range(5)]
+    confusion = [[0 for i in range(nn.output_dim)] for j in range(nn.output_dim)]
     for i, j in zip(correct, guess): confusion[i][j] += 1
     # makeconf(confusion)
 
