@@ -64,7 +64,7 @@ def run(args=None):
     tree.convert_trees(trees, training_word_map)
 
     if opts.model == 'RNTN':
-        nn = RNTN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch)
+        nn = RNTN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho)
     elif opts.model == 'RNN':
         nn = RNN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho)
     else:

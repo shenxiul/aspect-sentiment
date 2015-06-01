@@ -12,7 +12,7 @@ step=5e-2
 wvecDim=30
 rho=1e-6
 
-model="RNN" #either RNN, RNN2, RNN3, RNTN, or DCNN
+model="RNTN" #either RNN, RNN2, RNN3, RNTN, or DCNN
 label="rating"
 
 ######################################################## 
