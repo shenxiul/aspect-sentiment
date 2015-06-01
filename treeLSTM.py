@@ -1,11 +1,12 @@
 import numpy as np
 import collections
+import utility as nn
 import cPickle as pickle
 
-
-class RNTN:
-    def __init__(self, wvec_dim, output_dim, num_words, mb_size=30, rho=1e-4):
+class TreeLSTM:
+    def __init__(self, wvec_dim, mem_dim, output_dim, num_words, mb_size=30, rho=1e-3):
         self.wvec_dim = wvec_dim
+        self.mem_dim = mem_dim
         self.output_dim = output_dim
         self.num_words = num_words
         self.mb_size = mb_size
@@ -14,24 +15,23 @@ class RNTN:
 
     def init_params(self):
         np.random.seed(12341)
-        self.keep = 1.0
+        self.keep = 0.5
 
         # Word vectors
         self.L = np.random.randn(self.wvec_dim, self.num_words) * 0.01
 
         # Hidden layer parameters
-        self.V = np.random.rand(self.wvec_dim, 2 * self.wvec_dim, 2 * self.wvec_dim) * 0.01
         self.W = np.random.randn(self.wvec_dim, 2 * self.wvec_dim) * 0.01
         self.b = np.zeros(self.wvec_dim)
+        self.Wi = np.zeros((self.mem_dim, self.wvec_dim))
 
         # Softmax weights
         self.Ws = np.random.randn(self.output_dim, self.wvec_dim) * 0.01
         self.bs = np.zeros(self.output_dim)
 
-        self.stack = [self.L, self.V, self.W, self.b, self.Ws, self.bs]
+        self.stack = [self.L, self.W, self.b, self.Ws, self.bs]
 
         # Gradients
-        self.dV = np.empty(self.V.shape)
         self.dW = np.empty(self.W.shape)
         self.db = np.empty(self.b.shape)
         self.dWs = np.empty(self.Ws.shape)
@@ -56,10 +56,9 @@ class RNTN:
         correct = []
         guess = []
 
-        self.L, self.V, self.W, self.b, self.Ws, self.bs = self.stack
+        self.L, self.W, self.b, self.Ws, self.bs = self.stack
 
         # Zero gradients
-        self.dV[:] = 0
         self.dW[:] = 0
         self.db[:] = 0
         self.dWs[:] = 0
@@ -85,12 +84,10 @@ class RNTN:
             v *= scale
 
         # Add L2 Regularization
-        cost += (self.rho / 2) * np.sum(self.V ** 2)
         cost += (self.rho / 2) * np.sum(self.W ** 2)
         cost += (self.rho / 2) * np.sum(self.Ws ** 2)
 
-        return scale * cost, [self.dL, scale * (self.dV + self.rho * self.V),
-                              scale * (self.dW + self.rho * self.W), scale * self.db,
+        return scale * cost, [self.dL, scale * (self.dW + self.rho * self.W), scale * self.db,
                               scale * (self.dWs + self.rho * self.Ws), scale * self.dbs]
 
     def forward_prop(self, tree, test=False):
@@ -108,7 +105,7 @@ class RNTN:
         cost += -np.log(tree.probs[tree.label])
         return cost, np.argmax(tree.probs)
 
-    def forward_prop_node(self, node):
+    def forward_prop_node(self, node, nonlinearity=nn.relu):
         cost = 0.0
         if node.isLeaf:
             node.hActs1 = self.L[:, node.word].copy()
@@ -116,9 +113,8 @@ class RNTN:
             cost_left = self.forward_prop_node(node.left)
             cost_right = self.forward_prop_node(node.right)
             cost += (cost_left + cost_right)
-            children = np.hstack((node.left.hActs1, node.right.hActs1))
-            node.hActs1 = self.W.dot(children) + self.b + children.dot(self.V).dot(children)
-            node.hActs1 = np.tanh(node.hActs1)
+            node.hActs1 = self.W.dot(np.hstack((node.left.hActs1, node.right.hActs1))) + self.b
+            nonlinearity(node.hActs1)
         return cost
 
     def back_prop(self, tree):
@@ -131,19 +127,15 @@ class RNTN:
         pass
 
     def back_prop_node(self, node, error=None):
-        if error is not None:
-            deltas = error
-        else:
-            deltas = np.zeros(self.wvec_dim)
+        if error is not None: deltas = error
+        else: deltas = np.zeros(self.wvec_dim)
         if node.isLeaf:
             self.dL[node.word] += deltas
         else:
-            children = np.hstack((node.left.hActs1, node.right.hActs1))
-            deltas *= (1 - node.hActs1 ** 2)
-            self.dV += np.multiply.outer(deltas, np.outer(children, children))
-            self.dW += np.outer(deltas, children)
+            deltas *= (node.hActs1 > 0)
+            self.dW += np.outer(deltas, np.hstack((node.left.hActs1, node.right.hActs1)))
             self.db += deltas
-            deltas = deltas.dot(self.W) + deltas.dot(self.V.dot(children) + children.dot(self.V))
+            deltas = deltas.dot(self.W)
             self.back_prop_node(node.left, deltas[:self.wvec_dim])
             self.back_prop_node(node.right, deltas[self.wvec_dim:])
 
@@ -174,27 +166,25 @@ class RNTN:
         self.stack = pickle.load(fid)
 
     def check_grad(self, data, epsilon=1e-6):
-        state = np.random.get_state()
+        state =  np.random.get_state()
         cost, grad = self.cost_and_grad(data)
 
         err1 = 0.0
         count = 0.0
         print "Checking dW..."
         for W, dW in zip(self.stack[1:], grad[1:]):
-            W = W[..., None, None]  # add dimension since bias is flat
-            dW = dW[..., None, None]
+            W = W[..., None]  # add dimension since bias is flat
+            dW = dW[..., None]
             for i in xrange(W.shape[0]):
                 for j in xrange(W.shape[1]):
-                    for k in xrange(W.shape[2]):
-                        W[i, j, k] += epsilon
-                        np.random.set_state(state)
-                        costP, _ = self.cost_and_grad(data)
-                        W[i, j, k] -= epsilon
-                        numGrad = (costP - cost) / epsilon
-                        err = np.abs(dW[i, j, k] - numGrad)
-                        # print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dW[i, j, k], numGrad, err)
-                        err1 += err
-                        count += 1
+                    W[i, j] += epsilon
+                    np.random.set_state(state)
+                    costP, _ = self.cost_and_grad(data)
+                    W[i, j] -= epsilon
+                    numGrad = (costP - cost) / epsilon
+                    err = np.abs(dW[i, j] - numGrad)
+                    err1 += err
+                    count += 1
 
         if 0.001 > err1 / count:
             print "Grad Check Passed for dW"
@@ -234,7 +224,7 @@ if __name__ == '__main__':
     wvecDim = 20
     outputDim = 25
 
-    rnn = RNTN(wvecDim, outputDim, numW, mb_size=4)
+    rnn = RNN(wvecDim, outputDim, numW, mb_size=4)
     rnn.init_params()
 
     mbData = train[:4]
