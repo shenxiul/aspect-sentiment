@@ -9,6 +9,8 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 import loadTree as tree
+from sklearn import metrics
+import pdb
 
 
 def run(args=None):
@@ -64,11 +66,16 @@ def run(args=None):
     training_word_map = tree.load_word_map()
     opts.num_words = len(training_word_map)
     tree.convert_trees(trees, training_word_map)
+    labels = [each.label for each in trees]
+    count = np.zeros(opts.output_dim)
+    for label in labels: count[label] += 1
+    weight = 10 / (count ** 0.1)
+    #weight = np.ones(opts.output_dim)
 
     if opts.model == 'RNTN':
-        nn = RNTN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho)
+        nn = RNTN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho, weight=weight)
     elif opts.model == 'RNN':
-        nn = RNN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho)
+        nn = RNN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho, weight=weight)
     elif opts.model == 'TreeLSTM':
         nn = TreeLSTM(opts.wvec_dim, opts.mem_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho)
     else:
@@ -92,6 +99,7 @@ def run(args=None):
             pickle.dump(sgd.costt, fid)
             nn.to_file(fid)
         if evaluate_accuracy_while_training:
+            pdb.set_trace()
             print "testing on training set real quick"
             train_accuracies.append(test(opts.out_file, "train", label_method, opts.model, trees))
             print "testing on dev set real quick"
@@ -137,10 +145,14 @@ def test(net_file, data_set, label_method, model='RNN', trees=None):
 
     confusion = [[0 for i in range(nn.output_dim)] for j in range(nn.output_dim)]
     for i, j in zip(correct, guess): confusion[i][j] += 1
-    makeconf(confusion)
+    #makeconf(confusion)
 
-    print "Cost %f, Acc %f" % (cost, correct_sum / float(len(correct)))
-    return correct_sum / float(len(correct))
+    pre, rec, f1, support = metrics.precision_recall_fscore_support(correct, guess)
+    #print "Cost %f, Acc %f" % (cost, correct_sum / float(len(correct)))
+    #return correct_sum / float(len(correct))
+    f1 = (100*sum(f1[1:] * support[1:])/sum(support[1:]))
+    print "Cost %f, F1 %f" % (cost, f1)
+    return f1
 
 
 def makeconf(conf_arr):

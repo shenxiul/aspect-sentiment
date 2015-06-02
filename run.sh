@@ -8,13 +8,13 @@ set -x
 
 # training params
 epochs=20
-step=5e-2
-wvecDim=100
-memDim=100
-rho=1e-6
+step=1e-1
+wvecDim=10
+memDim=10
+rho=0e-6
 
-model="RNN" #either RNN, RNN2, RNN3, RNTN, or DCNN
-label="rating"
+model="TreeLSTM"
+label="aspect"
 
 ######################################################## 
 # Probably a good idea to let items below here be

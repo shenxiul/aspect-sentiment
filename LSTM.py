@@ -6,7 +6,7 @@ import cPickle as pickle
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
-class TreeLSTM:
+class LSTM:
     def __init__(self, wvec_dim, mem_dim, output_dim, num_words, mb_size=30, rho=1e-3):
         self.wvec_dim = wvec_dim
         self.mem_dim = mem_dim
@@ -320,8 +320,8 @@ if __name__ == '__main__':
     outputDim = 5
     memDim = 25
 
-    rnn = TreeLSTM(wvecDim, memDim, outputDim, numW, mb_size=4)
-    rnn.init_params()
+    lstm = LSTM(wvecDim, memDim, outputDim, numW, mb_size=4)
+    lstm.init_params()
 
     mbData = train[:4]
 

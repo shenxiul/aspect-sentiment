@@ -4,13 +4,15 @@ import utility as nn
 import cPickle as pickle
 
 class RNN:
-    def __init__(self, wvec_dim, output_dim, num_words, mb_size=30, rho=1e-3):
+    def __init__(self, wvec_dim, output_dim, num_words, mb_size=30, rho=1e-3, weight=None):
         self.wvec_dim = wvec_dim
         self.output_dim = output_dim
         self.num_words = num_words
         self.mb_size = mb_size
         self.default_vec = lambda: np.zeros((wvec_dim,))
         self.rho = rho
+        if weight is None: self.weight = np.ones(output_dim)
+        else: self.weight = weight
 
     def init_params(self):
         np.random.seed(12341)
@@ -100,7 +102,7 @@ class RNN:
         tree.probs = np.exp(theta)
         tree.probs /= np.sum(tree.probs)
 
-        cost += -np.log(tree.probs[tree.label])
+        cost += -np.log(tree.probs[tree.label]) * self.weight[tree.label]
         return cost, np.argmax(tree.probs)
 
     def forward_prop_node(self, node, nonlinearity=nn.relu):
@@ -118,6 +120,7 @@ class RNN:
     def back_prop(self, tree):
         deltas = tree.probs.copy()
         deltas[tree.label] -= 1.0
+        deltas *= self.weight[tree.label]
         self.dWs += np.outer(deltas, tree.root.hActs1 * tree.mask)
         self.dbs += deltas
         deltas = deltas.dot(self.Ws) * tree.mask

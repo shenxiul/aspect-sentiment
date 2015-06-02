@@ -29,6 +29,7 @@ class TreeSingleLabel:
         self.root = build_tree(nltk.tree.Tree.fromstring(tree))
         self.label = label_method(label)
         self.probs = None
+        self.depth = tree_depth(self.root)
 
     def __str__(self):
         return str(self.label) + ' (' + str(self.root) + ')'
@@ -45,6 +46,13 @@ def build_tree(tree, parent=None):
         root.left = build_tree(tree[0], root)
         root.right = build_tree(tree[1], root)
     return root
+
+
+def tree_depth(root):
+    if root.isLeaf:
+        return 1
+    else:
+        return max(tree_depth(root.left), tree_depth(root.right)) + 1
 
 
 def aspect_label(label_dic):

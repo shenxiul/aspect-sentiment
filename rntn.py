@@ -14,7 +14,7 @@ class RNTN:
 
     def init_params(self):
         np.random.seed(12341)
-        self.keep = 1.0
+        self.keep = 0.5
 
         # Word vectors
         self.L = np.random.randn(self.wvec_dim, self.num_words) * 0.01
@@ -101,7 +101,7 @@ class RNTN:
         else:
             theta = self.Ws.dot(tree.root.hActs1) * self.keep + self.bs
         theta -= np.max(theta)
-        theta[theta < -300] = -300
+        theta[theta < -400] = -400
         tree.probs = np.exp(theta)
         tree.probs /= np.sum(tree.probs)
 
@@ -192,7 +192,7 @@ class RNTN:
                         W[i, j, k] -= epsilon
                         numGrad = (costP - cost) / epsilon
                         err = np.abs(dW[i, j, k] - numGrad)
-                        # print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dW[i, j, k], numGrad, err)
+                        print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dW[i, j, k], numGrad, err)
                         err1 += err
                         count += 1
 
@@ -226,13 +226,13 @@ class RNTN:
 if __name__ == '__main__':
     import loadTree as tree
 
-    train = tree.load_trees('./data/train.json', tree.pair_label)
+    train = tree.load_trees('./data/train.json', tree.aspect_label)
     training_word_map = tree.load_word_map()
     numW = len(training_word_map)
     tree.convert_trees(train, training_word_map)
 
-    wvecDim = 20
-    outputDim = 25
+    wvecDim = 10
+    outputDim = 5
 
     rnn = RNTN(wvecDim, outputDim, numW, mb_size=4)
     rnn.init_params()
