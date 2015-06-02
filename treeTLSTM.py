@@ -22,7 +22,7 @@ class TreeTLSTM:
 
     def init_params(self):
         np.random.seed(12341)
-        self.keep = 1.0
+        self.keep = 0.5
 
         # Input layer
         self.W_in = np.random.randn(self.mem_dim, self.wvec_dim) * 0.5

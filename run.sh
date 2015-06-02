@@ -9,18 +9,18 @@ set -x
 # training params
 epochs=10
 step=5e-2
-wvecDim=30
-memDim=30
+wvecDim=50
+memDim=50
 rho=1e-4
 
 model="TreeTLSTM"
-label="rating"
+label="aspect"
 
 ######################################################## 
 # Probably a good idea to let items below here be
 ########################################################
 
-outfile="models/${model}_${label}_wvecDim_${wvecDim}_memDim_${memDim}_step_${step}_epochs_${epochs}_rho_${rho}_nodrop.bin"
+outfile="models/${model}_${label}_wvecDim_${wvecDim}_memDim_${memDim}_step_${step}_epochs_${epochs}_rho_${rho}.bin"
 
 echo $outfile
 
