@@ -5,8 +5,8 @@ import cPickle as pickle
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
-class LSTM:
-    def __init__(self, wvec_dim, mem_dim, output_dim, num_words, mb_size=30, rho=1e-3):
+class TreeTLSTM:
+    def __init__(self, wvec_dim, mem_dim, output_dim, num_words, mb_size=30, rho=1e-3, L=None):
         self.wvec_dim = wvec_dim
         self.mem_dim = mem_dim
         self.output_dim = output_dim
@@ -14,30 +14,33 @@ class LSTM:
         self.mb_size = mb_size
         self.default_vec = lambda: np.zeros((wvec_dim,))
         self.rho = rho
+        if L is None:
+            # Word vectors
+            self.L = np.random.randn(self.wvec_dim, self.num_words) * 0.01
+        else:
+            self.L = L.copy()
 
     def init_params(self):
         np.random.seed(12341)
         self.keep = 1.0
 
-        # Word vectors
-        self.L = np.random.randn(self.wvec_dim, self.num_words) * 0.01
-
         # Input layer
-        self.W_in = np.random.randn(self.mem_dim, self.wvec_dim) * 0.01
+        self.W_in = np.random.randn(self.mem_dim, self.wvec_dim) * 0.5
         self.b_in = np.zeros(self.mem_dim)
-        self.W_out = np.random.randn(self.mem_dim, self.wvec_dim) * 0.01
+        self.W_out = np.random.randn(self.mem_dim, self.wvec_dim) * 0.5
         self.b_out = np.zeros(self.mem_dim)
 
         # Gates
-        self.Ui = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.01
-        self.bi = np.zeros(self.mem_dim)
-        self.Uf_l = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.01
-        self.Uf_r = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.01
-        self.bf = np.zeros(self.mem_dim)
-        self.Uo = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.01
-        self.bo = np.zeros(self.mem_dim)
+        self.Ui = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.05
+        self.bi = np.ones(self.mem_dim) * 0
+        self.Uf_l = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.05
+        self.Uf_r = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.05
+        self.bf = np.ones(self.mem_dim) * 0
+        self.Uo = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.05
+        self.bo = np.ones(self.mem_dim) * 0
         self.Uu = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.01
-        self.bu = np.zeros(self.mem_dim)
+        self.bu = np.ones(self.mem_dim) * 0
+        self.V = np.random.randn(self.mem_dim, 2 * self.mem_dim, 2 * self.mem_dim) * 0.01
 
         # Softmax weights
         self.Ws = np.random.randn(self.output_dim, self.mem_dim) * 0.01
@@ -48,7 +51,7 @@ class LSTM:
                       self.Ui, self.bi,
                       self.Uf_l, self.Uf_r, self.bf,
                       self.Uo, self.bo,
-                      self.Uu, self.bu,
+                      self.Uu, self.bu, self.V,
                       self.Ws, self.bs]
 
         # Gradients
@@ -65,6 +68,7 @@ class LSTM:
         self.dbo = np.empty(self.bo.shape)
         self.dUu = np.empty(self.Uu.shape)
         self.dbu = np.empty(self.bu.shape)
+        self.dV = np.empty(self.V.shape)
         self.dWs = np.empty(self.Ws.shape)
         self.dbs = np.empty(self.bs.shape)
 
@@ -91,7 +95,7 @@ class LSTM:
         self.Ui, self.bi,\
         self.Uf_l, self.Uf_r, self.bf,\
         self.Uo, self.bo,\
-        self.Uu, self.bu,\
+        self.Uu, self.bu, self.V,\
         self.Ws, self.bs = self.stack
 
         # Zero gradients
@@ -107,6 +111,7 @@ class LSTM:
         self.dbo[:] = 0
         self.dUu[:] = 0
         self.dbu[:] = 0
+        self.dV[:] = 0
         self.dWs[:] = 0
         self.dbs[:] = 0
         self.dL = collections.defaultdict(self.default_vec)
@@ -137,6 +142,7 @@ class LSTM:
         cost += (self.rho / 2) * np.sum(self.Uf_r ** 2)
         cost += (self.rho / 2) * np.sum(self.Uo ** 2)
         cost += (self.rho / 2) * np.sum(self.Uu ** 2)
+        cost += (self.rho / 2) * np.sum(self.V ** 2)
         cost += (self.rho / 2) * np.sum(self.Ws ** 2)
 
         return scale * cost, [self.dL, scale * (self.dW_in + self.rho * self.W_in), scale * self.db_in,
@@ -146,6 +152,7 @@ class LSTM:
                               scale * (self.dUf_r + self.rho * self.Uf_r), scale * self.dbf,
                               scale * (self.dUo + self.rho * self.Uo), scale * self.dbo,
                               scale * (self.dUu + self.rho * self.Uu), scale * self.dbu,
+                              scale * (self.dV + self.rho * self.V),
                               scale * (self.dWs + self.rho * self.Ws), scale * self.dbs]
 
     def forward_prop(self, tree, test=False):
@@ -163,7 +170,7 @@ class LSTM:
         cost += -np.log(tree.probs[tree.label])
         return cost, np.argmax(tree.probs)
 
-    def forward_prop_node(self, node):
+    def forward_prop_node(self, node, depth=-1):
         cost = 0.0
         if node.isLeaf:
             node.c = self.W_in.dot(self.L[:, node.word]) + self.b_in
@@ -171,15 +178,15 @@ class LSTM:
             node.ct = np.tanh(node.c)
             node.hActs1 = node.o * node.ct
         else:
-            cost_left = self.forward_prop_node(node.left)
-            cost_right = self.forward_prop_node(node.right)
+            cost_left = self.forward_prop_node(node.left, depth - 1)
+            cost_right = self.forward_prop_node(node.right, depth - 1)
             cost += (cost_left + cost_right)
             children = np.hstack((node.left.hActs1, node.right.hActs1))
             node.i = sigmoid(self.Ui.dot(children) + self.bi)
             node.f_l = sigmoid(self.Uf_l.dot(children) + self.bf)
             node.f_r = sigmoid(self.Uf_r.dot(children) + self.bf)
             node.o = sigmoid(self.Uo.dot(children) + self.bo)
-            node.u = np.tanh(self.Uu.dot(children) + self.bu)
+            node.u = np.tanh(self.Uu.dot(children) + self.bu + children.dot(self.V).dot(children))
             node.c = node.i * node.u + node.f_l * node.left.c + node.f_r * node.right.c
             node.ct = np.tanh(node.c)
             node.hActs1 = node.o * node.ct
@@ -194,12 +201,12 @@ class LSTM:
         self.back_prop_node(tree.root, deltas)
         pass
 
-    def back_prop_node(self, node, errorH, errorC=None):
+    def back_prop_node(self, node, errorH, errorC=None, depth=-1):
         errorO = errorH * node.ct * node.o * (1 - node.o)
         if errorC is None:
-            errorC = errorH * node.o * (1 - node.c ** 2)
+            errorC = errorH * node.o * (1 - node.ct ** 2)
         else:
-            errorC += errorH * node.o * (1 - node.c ** 2)
+            errorC += errorH * node.o * (1 - node.ct ** 2)
         if node.isLeaf:
             self.dW_out += np.outer(errorO, self.L[:, node.word])
             self.db_out += errorO
@@ -218,7 +225,8 @@ class LSTM:
             errorU = errorC * node.i * (1 - node.u ** 2)
             self.dbu += errorU
             self.dUu += np.outer(errorU, children)
-            errorDownH += errorU.dot(self.Uu)
+            self.dV += np.multiply.outer(errorU, np.outer(children, children))
+            errorDownH += errorU.dot(self.Uu + (self.V + self.V.transpose((0, 2, 1))).dot(children))
             errorFL = errorC * node.left.c * node.f_l * (1 - node.f_l)
             errorFR = errorC * node.right.c * node.f_r * (1 - node.f_r)
             self.dbf += (errorFL + errorFR)
@@ -228,8 +236,8 @@ class LSTM:
             errorCL = errorC * node.f_l
             errorCR = errorC * node.f_r
 
-            self.back_prop_node(node.left, errorDownH[:self.mem_dim], errorCL)
-            self.back_prop_node(node.right, errorDownH[self.mem_dim:], errorCR)
+            self.back_prop_node(node.left, errorDownH[:self.mem_dim], errorCL, depth - 1)
+            self.back_prop_node(node.right, errorDownH[self.mem_dim:], errorCR, depth - 1)
 
     def update_params(self, scale, update, log=False):
         """
@@ -264,20 +272,21 @@ class LSTM:
         err1 = 0.0
         count = 0.0
         print "Checking dW..."
-        for W, dW in zip(self.stack[-2:-1], grad[-2:-1]):
-            W = W[..., None]  # add dimension since bias is flat
-            dW = dW[..., None]
+        for W, dW in zip(self.stack[1:], grad[1:]):
+            W = W[..., None, None]  # add dimension since bias is flat
+            dW = dW[..., None, None]
             for i in xrange(W.shape[0]):
                 for j in xrange(W.shape[1]):
-                    W[i, j] += epsilon
-                    np.random.set_state(state)
-                    costP, _ = self.cost_and_grad(data)
-                    W[i, j] -= epsilon
-                    numGrad = (costP - cost) / epsilon
-                    err = np.abs(dW[i, j] - numGrad)
-                    print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dW[i, j], numGrad, err)
-                    err1 += err
-                    count += 1
+                    for k in xrange(W.shape[2]):
+                        W[i, j, k] += epsilon
+                        np.random.set_state(state)
+                        costP, _ = self.cost_and_grad(data)
+                        W[i, j, k] -= epsilon
+                        numGrad = (costP - cost) / epsilon
+                        err = float(np.abs(dW[i, j, k] - numGrad))
+                        print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dW[i, j, k], numGrad, err)
+                        err1 += err
+                        count += 1
 
         if 0.001 > err1:
             print "Grad Check Passed for dW"
@@ -297,7 +306,7 @@ class LSTM:
                 L[i, j] -= epsilon
                 numGrad = (costP - cost) / epsilon
                 err = np.abs(dL[j][i] - numGrad)
-                print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dL[j][i], numGrad, err)
+                # print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dL[j][i], numGrad, err)
                 err2 += err
                 count += 1
 
@@ -317,12 +326,12 @@ if __name__ == '__main__':
 
     wvecDim = 10
     outputDim = 5
-    memDim = 25
+    memDim = 5
 
-    lstm = LSTM(wvecDim, memDim, outputDim, numW, mb_size=4)
-    lstm.init_params()
+    rnn = TreeTLSTM(wvecDim, memDim, outputDim, numW, mb_size=4)
+    rnn.init_params()
 
-    mbData = train[:4]
+    mbData = train[:5]
 
     print "Numerical gradient check..."
     rnn.check_grad(mbData, 1e-7)

@@ -60,9 +60,10 @@ def aspect_label(label_dic):
 
 
 def rating_label(label_dic):
-    #if label_dic['rating'] > 4: return 2
-    #elif label_dic['rating'] == 4: return 1
-    #else: return 0
+    # if label_dic['rating'] > 4: return 2
+    # elif label_dic['rating'] == 4: return 1
+    # else: return 0
+    # if label_dic['rating'] > 4: return 4
     return int(label_dic['rating']) - 1
 
 

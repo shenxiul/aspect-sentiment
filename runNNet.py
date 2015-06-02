@@ -5,6 +5,7 @@ import sgd as optimizer
 from rntn import RNTN
 from rnn import RNN
 from treeLSTM import TreeLSTM
+from treeTLSTM import TreeTLSTM
 import time
 import matplotlib.pyplot as plt
 import numpy as np
@@ -69,8 +70,8 @@ def run(args=None):
     labels = [each.label for each in trees]
     count = np.zeros(opts.output_dim)
     for label in labels: count[label] += 1
-    weight = 10 / (count ** 0.1)
-    #weight = np.ones(opts.output_dim)
+    # weight = 10 / (count ** 0.1)
+    weight = np.ones(opts.output_dim)
 
     if opts.model == 'RNTN':
         nn = RNTN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho, weight=weight)
@@ -78,6 +79,8 @@ def run(args=None):
         nn = RNN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho, weight=weight)
     elif opts.model == 'TreeLSTM':
         nn = TreeLSTM(opts.wvec_dim, opts.mem_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho)
+    elif opts.model == 'TreeTLSTM':
+        nn = TreeTLSTM(opts.wvec_dim, opts.mem_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho)
     else:
         raise '%s is not a valid neural network so far only RNTN, RNN, RNN2, RNN3, and DCNN' % opts.model
 
@@ -99,7 +102,7 @@ def run(args=None):
             pickle.dump(sgd.costt, fid)
             nn.to_file(fid)
         if evaluate_accuracy_while_training:
-            pdb.set_trace()
+            # pdb.set_trace()
             print "testing on training set real quick"
             train_accuracies.append(test(opts.out_file, "train", label_method, opts.model, trees))
             print "testing on dev set real quick"
@@ -130,6 +133,8 @@ def test(net_file, data_set, label_method, model='RNN', trees=None):
             nn = RNN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch)
         elif opts.model == 'TreeLSTM':
             nn = TreeLSTM(opts.wvec_dim, opts.mem_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho)
+        elif opts.model == 'TreeTLSTM':
+            nn = TreeTLSTM(opts.wvec_dim, opts.mem_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho)
         else:
             raise '%s is not a valid neural network so far only RNTN, RNN, RNN2, RNN3, and DCNN' % opts.model
 
@@ -151,7 +156,7 @@ def test(net_file, data_set, label_method, model='RNN', trees=None):
     #print "Cost %f, Acc %f" % (cost, correct_sum / float(len(correct)))
     #return correct_sum / float(len(correct))
     f1 = (100*sum(f1[1:] * support[1:])/sum(support[1:]))
-    print "Cost %f, F1 %f" % (cost, f1)
+    print "Cost %f, F1 %f, Acc %f" % (cost, f1, correct_sum / float(len(correct)))
     return f1
 
 

@@ -105,7 +105,7 @@ class RNN:
         cost += -np.log(tree.probs[tree.label]) * self.weight[tree.label]
         return cost, np.argmax(tree.probs)
 
-    def forward_prop_node(self, node, nonlinearity=nn.relu):
+    def forward_prop_node(self, node):
         cost = 0.0
         if node.isLeaf:
             node.hActs1 = self.L[:, node.word].copy()
@@ -114,7 +114,7 @@ class RNN:
             cost_right = self.forward_prop_node(node.right)
             cost += (cost_left + cost_right)
             node.hActs1 = self.W.dot(np.hstack((node.left.hActs1, node.right.hActs1))) + self.b
-            nonlinearity(node.hActs1)
+            node.hActs1[node.hActs1 < 0] = 0
         return cost
 
     def back_prop(self, tree):
@@ -184,6 +184,7 @@ class RNN:
                     W[i, j] -= epsilon
                     numGrad = (costP - cost) / epsilon
                     err = np.abs(dW[i, j] - numGrad)
+                    print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dW[i, j], numGrad, err)
                     err1 += err
                     count += 1
 
@@ -205,6 +206,7 @@ class RNN:
                 L[i, j] -= epsilon
                 numGrad = (costP - cost) / epsilon
                 err = np.abs(dL[j][i] - numGrad)
+                print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dL[j][i], numGrad, err)
                 err2 += err
                 count += 1
 

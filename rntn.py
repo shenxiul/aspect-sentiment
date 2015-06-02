@@ -192,7 +192,8 @@ class RNTN:
                         W[i, j, k] -= epsilon
                         numGrad = (costP - cost) / epsilon
                         err = np.abs(dW[i, j, k] - numGrad)
-                        print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dW[i, j, k], numGrad, err)
+                        print err
+                        # print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dW[i, j, k], numGrad, err)
                         err1 += err
                         count += 1
 

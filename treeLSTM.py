@@ -1,6 +1,5 @@
 import numpy as np
 import collections
-import utility as nn
 import cPickle as pickle
 
 def sigmoid(x):
@@ -23,24 +22,24 @@ class TreeLSTM:
 
     def init_params(self):
         np.random.seed(12341)
-        self.keep = 1.0
+        self.keep = 0.5
 
         # Input layer
-        self.W_in = np.random.randn(self.mem_dim, self.wvec_dim) * 0.01
+        self.W_in = np.random.randn(self.mem_dim, self.wvec_dim) * 0.5
         self.b_in = np.zeros(self.mem_dim)
-        self.W_out = np.random.randn(self.mem_dim, self.wvec_dim) * 0.01
+        self.W_out = np.random.randn(self.mem_dim, self.wvec_dim) * 0.5
         self.b_out = np.zeros(self.mem_dim)
 
         # Gates
-        self.Ui = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.01
-        self.bi = np.zeros(self.mem_dim)
-        self.Uf_l = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.01
-        self.Uf_r = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.01
-        self.bf = np.zeros(self.mem_dim)
-        self.Uo = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.01
-        self.bo = np.zeros(self.mem_dim)
+        self.Ui = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.05
+        self.bi = np.ones(self.mem_dim) * 0
+        self.Uf_l = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.05
+        self.Uf_r = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.05
+        self.bf = np.ones(self.mem_dim) * 0
+        self.Uo = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.05
+        self.bo = np.ones(self.mem_dim) * 0
         self.Uu = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.01
-        self.bu = np.zeros(self.mem_dim)
+        self.bu = np.ones(self.mem_dim) * 0
 
         # Softmax weights
         self.Ws = np.random.randn(self.output_dim, self.mem_dim) * 0.01
@@ -200,9 +199,9 @@ class TreeLSTM:
     def back_prop_node(self, node, errorH, errorC=None, depth=-1):
         errorO = errorH * node.ct * node.o * (1 - node.o)
         if errorC is None:
-            errorC = errorH * node.o * (1 - node.c ** 2)
+            errorC = errorH * node.o * (1 - node.ct ** 2)
         else:
-            errorC += errorH * node.o * (1 - node.c ** 2)
+            errorC += errorH * node.o * (1 - node.ct ** 2)
         if node.isLeaf:
             self.dW_out += np.outer(errorO, self.L[:, node.word])
             self.db_out += errorO
@@ -267,7 +266,7 @@ class TreeLSTM:
         err1 = 0.0
         count = 0.0
         print "Checking dW..."
-        for W, dW in zip(self.stack[-2:-1], grad[-2:-1]):
+        for W, dW in zip(self.stack[1:], grad[1:]):
             W = W[..., None]  # add dimension since bias is flat
             dW = dW[..., None]
             for i in xrange(W.shape[0]):
@@ -300,7 +299,7 @@ class TreeLSTM:
                 L[i, j] -= epsilon
                 numGrad = (costP - cost) / epsilon
                 err = np.abs(dL[j][i] - numGrad)
-                print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dL[j][i], numGrad, err)
+                # print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dL[j][i], numGrad, err)
                 err2 += err
                 count += 1
 
@@ -325,7 +324,7 @@ if __name__ == '__main__':
     rnn = TreeLSTM(wvecDim, memDim, outputDim, numW, mb_size=4)
     rnn.init_params()
 
-    mbData = train[:4]
+    mbData = train[:50]
 
     print "Numerical gradient check..."
     rnn.check_grad(mbData, 1e-7)

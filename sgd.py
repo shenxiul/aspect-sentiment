@@ -1,6 +1,6 @@
 import numpy as np
 import random
-
+import pdb
 
 class SGD:
     def __init__(self, model, alpha=1e-2, minibatch=30, optimizer='sgd'):
@@ -54,6 +54,7 @@ class SGD:
                 scale = -self.alpha
 
             elif self.optimizer == 'adagrad':
+                # print grad[1:]
                 # trace = trace+grad.^2
                 self.gradt[1:] = [gt + g ** 2
                                   for gt, g in zip(self.gradt[1:], grad[1:])]
