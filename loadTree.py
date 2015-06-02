@@ -120,6 +120,11 @@ def load_word_map():
         return pickle.load(fid)
 
 
+def load_word_list():
+    with open('data/wordList.bin', 'r') as fid:
+        return pickle.load(fid)
+
+
 def load_trees(filename, label_method):
     trees = []
     with open(filename) as handle:

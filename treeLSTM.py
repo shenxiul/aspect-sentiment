@@ -7,7 +7,7 @@ def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
 class TreeLSTM:
-    def __init__(self, wvec_dim, mem_dim, output_dim, num_words, mb_size=30, rho=1e-3):
+    def __init__(self, wvec_dim, mem_dim, output_dim, num_words, mb_size=30, rho=1e-3, L=None):
         self.wvec_dim = wvec_dim
         self.mem_dim = mem_dim
         self.output_dim = output_dim
@@ -15,13 +15,15 @@ class TreeLSTM:
         self.mb_size = mb_size
         self.default_vec = lambda: np.zeros((wvec_dim,))
         self.rho = rho
+        if L is None:
+            # Word vectors
+            self.L = np.random.randn(self.wvec_dim, self.num_words) * 0.01
+        else:
+            self.L = L.copy()
 
     def init_params(self):
         np.random.seed(12341)
         self.keep = 1.0
-
-        # Word vectors
-        self.L = np.random.randn(self.wvec_dim, self.num_words) * 0.01
 
         # Input layer
         self.W_in = np.random.randn(self.mem_dim, self.wvec_dim) * 0.01
@@ -164,7 +166,7 @@ class TreeLSTM:
         cost += -np.log(tree.probs[tree.label])
         return cost, np.argmax(tree.probs)
 
-    def forward_prop_node(self, node):
+    def forward_prop_node(self, node, depth=-1):
         cost = 0.0
         if node.isLeaf:
             node.c = self.W_in.dot(self.L[:, node.word]) + self.b_in
@@ -172,8 +174,8 @@ class TreeLSTM:
             node.ct = np.tanh(node.c)
             node.hActs1 = node.o * node.ct
         else:
-            cost_left = self.forward_prop_node(node.left)
-            cost_right = self.forward_prop_node(node.right)
+            cost_left = self.forward_prop_node(node.left, depth - 1)
+            cost_right = self.forward_prop_node(node.right, depth - 1)
             cost += (cost_left + cost_right)
             children = np.hstack((node.left.hActs1, node.right.hActs1))
             node.i = sigmoid(self.Ui.dot(children) + self.bi)
@@ -195,7 +197,7 @@ class TreeLSTM:
         self.back_prop_node(tree.root, deltas)
         pass
 
-    def back_prop_node(self, node, errorH, errorC=None):
+    def back_prop_node(self, node, errorH, errorC=None, depth=-1):
         errorO = errorH * node.ct * node.o * (1 - node.o)
         if errorC is None:
             errorC = errorH * node.o * (1 - node.c ** 2)
@@ -229,8 +231,8 @@ class TreeLSTM:
             errorCL = errorC * node.f_l
             errorCR = errorC * node.f_r
 
-            self.back_prop_node(node.left, errorDownH[:self.mem_dim], errorCL)
-            self.back_prop_node(node.right, errorDownH[self.mem_dim:], errorCR)
+            self.back_prop_node(node.left, errorDownH[:self.mem_dim], errorCL, depth - 1)
+            self.back_prop_node(node.right, errorDownH[self.mem_dim:], errorCR, depth - 1)
 
     def update_params(self, scale, update, log=False):
         """

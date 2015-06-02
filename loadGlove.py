@@ -24,4 +24,4 @@ def load_batch(file_prefix):
 
 
 if __name__ == '__main__':
-    load_batch('./data/glove.twitter.27B.25d')
+    load_batch('./data/glove.42B.300d')
