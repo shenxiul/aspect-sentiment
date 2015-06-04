@@ -7,6 +7,7 @@ def sigmoid(x):
 
 class TreeLSTM:
     def __init__(self, wvec_dim, mem_dim, output_dim, num_words, mb_size=30, rho=1e-3, L=None):
+        np.random.seed(12341)
         self.wvec_dim = wvec_dim
         self.mem_dim = mem_dim
         self.output_dim = output_dim
@@ -14,6 +15,8 @@ class TreeLSTM:
         self.mb_size = mb_size
         self.default_vec = lambda: np.zeros((wvec_dim,))
         self.rho = rho
+        self.keep = 0.5
+        self.node_keep = 1.0
         if L is None:
             # Word vectors
             self.L = np.random.randn(self.wvec_dim, self.num_words) * 0.01
@@ -21,9 +24,6 @@ class TreeLSTM:
             self.L = L.copy()
 
     def init_params(self):
-        np.random.seed(12341)
-        self.keep = 0.5
-
         # Input layer
         self.W_in = np.random.randn(self.mem_dim, self.wvec_dim) * 0.5
         self.b_in = np.zeros(self.mem_dim)
@@ -151,7 +151,7 @@ class TreeLSTM:
                               scale * (self.dWs + self.rho * self.Ws), scale * self.dbs]
 
     def forward_prop(self, tree, test=False):
-        cost = self.forward_prop_node(tree.root)
+        cost = self.forward_prop_node(tree.root, test)
         if not test:
             tree.mask = np.random.binomial(1, self.keep, self.mem_dim)
             theta = self.Ws.dot(tree.root.hActs1 * tree.mask) + self.bs
@@ -165,16 +165,20 @@ class TreeLSTM:
         cost += -np.log(tree.probs[tree.label])
         return cost, np.argmax(tree.probs)
 
-    def forward_prop_node(self, node, depth=-1):
+    def forward_prop_node(self, node, depth=-1, test=False):
         cost = 0.0
         if node.isLeaf:
             node.c = self.W_in.dot(self.L[:, node.word]) + self.b_in
             node.o = sigmoid(self.W_out.dot(self.L[:, node.word]) + self.b_out)
             node.ct = np.tanh(node.c)
-            node.hActs1 = node.o * node.ct
+            if not test:
+                node.mask = np.random.binomial(1, self.node_keep, self.mem_dim)
+                node.hActs1 = node.o * node.ct * node.mask
+            else:
+                node.hActs1 = node.o * node.ct * self.node_keep
         else:
             cost_left = self.forward_prop_node(node.left, depth - 1)
-            cost_right = self.forward_prop_node(node.right, depth - 1)
+            cost_right = self.forward_prop_node(node.right, depth - 2)
             cost += (cost_left + cost_right)
             children = np.hstack((node.left.hActs1, node.right.hActs1))
             node.i = sigmoid(self.Ui.dot(children) + self.bi)
@@ -184,7 +188,11 @@ class TreeLSTM:
             node.u = np.tanh(self.Uu.dot(children) + self.bu)
             node.c = node.i * node.u + node.f_l * node.left.c + node.f_r * node.right.c
             node.ct = np.tanh(node.c)
-            node.hActs1 = node.o * node.ct
+            if not test:
+                node.mask = np.random.binomial(1, self.node_keep, self.mem_dim)
+                node.hActs1 = node.o * node.ct * node.mask
+            else:
+                node.hActs1 = node.o * node.ct * self.node_keep
         return cost
 
     def back_prop(self, tree):
@@ -197,11 +205,11 @@ class TreeLSTM:
         pass
 
     def back_prop_node(self, node, errorH, errorC=None, depth=-1):
-        errorO = errorH * node.ct * node.o * (1 - node.o)
+        errorO = errorH * node.mask * node.ct * node.o * (1 - node.o)
         if errorC is None:
-            errorC = errorH * node.o * (1 - node.ct ** 2)
+            errorC = errorH * node.mask * node.o * (1 - node.ct ** 2)
         else:
-            errorC += errorH * node.o * (1 - node.ct ** 2)
+            errorC += errorH * node.mask * node.o * (1 - node.ct ** 2)
         if node.isLeaf:
             self.dW_out += np.outer(errorO, self.L[:, node.word])
             self.db_out += errorO
@@ -210,23 +218,24 @@ class TreeLSTM:
             self.dL[node.word] += errorO.dot(self.W_out) + errorC.dot(self.W_in)
         else:
             children = np.hstack((node.left.hActs1, node.right.hActs1))
+            masks = np.hstack((node.left.mask, node.right.mask))
             self.dbo += errorO
             self.dUo += np.outer(errorO, children)
-            errorDownH = errorO.dot(self.Uo)
+            errorDownH = errorO.dot(self.Uo) * masks
             errorI = errorC * node.u * node.i * (1 - node.i)
             self.dbi += errorI
             self.dUi += np.outer(errorI, children)
-            errorDownH += errorI.dot(self.Ui)
+            errorDownH += errorI.dot(self.Ui) * masks
             errorU = errorC * node.i * (1 - node.u ** 2)
             self.dbu += errorU
             self.dUu += np.outer(errorU, children)
-            errorDownH += errorU.dot(self.Uu)
+            errorDownH += errorU.dot(self.Uu) * masks
             errorFL = errorC * node.left.c * node.f_l * (1 - node.f_l)
             errorFR = errorC * node.right.c * node.f_r * (1 - node.f_r)
             self.dbf += (errorFL + errorFR)
             self.dUf_l += np.outer(errorFL, children)
             self.dUf_r += np.outer(errorFR, children)
-            errorDownH += (errorFL.dot(self.Uf_l) + errorFR.dot(self.Uf_r))
+            errorDownH += (errorFL.dot(self.Uf_l) + errorFR.dot(self.Uf_r)) * masks
             errorCL = errorC * node.f_l
             errorCR = errorC * node.f_r
 
@@ -271,13 +280,17 @@ class TreeLSTM:
             dW = dW[..., None]
             for i in xrange(W.shape[0]):
                 for j in xrange(W.shape[1]):
-                    W[i, j] += epsilon
+                    W[i, j] += epsilon / 2
                     np.random.set_state(state)
                     costP, _ = self.cost_and_grad(data)
                     W[i, j] -= epsilon
-                    numGrad = (costP - cost) / epsilon
+                    np.random.set_state(state)
+                    costM, _ = self.cost_and_grad(data)
+                    W[i, j] += epsilon / 2
+                    numGrad = (costP - costM) / epsilon
                     err = np.abs(dW[i, j] - numGrad)
-                    print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dW[i, j], numGrad, err)
+                    print err
+                    #print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dW[i, j], numGrad, err)
                     err1 += err
                     count += 1
 
@@ -299,7 +312,8 @@ class TreeLSTM:
                 L[i, j] -= epsilon
                 numGrad = (costP - cost) / epsilon
                 err = np.abs(dL[j][i] - numGrad)
-                # print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dL[j][i], numGrad, err)
+                print err
+                #print "Analytic %.9f, Numerical %.9f, Relative Error %.9f" % (dL[j][i], numGrad, err)
                 err2 += err
                 count += 1
 
@@ -319,12 +333,12 @@ if __name__ == '__main__':
 
     wvecDim = 10
     outputDim = 5
-    memDim = 25
+    memDim = 15
 
     rnn = TreeLSTM(wvecDim, memDim, outputDim, numW, mb_size=4)
     rnn.init_params()
 
-    mbData = train[:50]
+    mbData = train[:10]
 
     print "Numerical gradient check..."
-    rnn.check_grad(mbData, 1e-7)
+    rnn.check_grad(mbData)

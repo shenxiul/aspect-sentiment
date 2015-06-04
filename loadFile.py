@@ -31,10 +31,26 @@ def build_vocabulary(review_set):
     return vocabulary
 
 
+def aspect_label(label_dic):
+    return aspect_dic[label_dic['aspect']]
+
+
+def rating_label(label_dic):
+    # if label_dic['rating'] > 4: return 2
+    # elif label_dic['rating'] == 4: return 1
+    # else: return 0
+    # if label_dic['rating'] > 4: return 4
+    return int(label_dic['rating']) - 1
+
+
+def pair_label(label_dic):
+    return aspect_label(label_dic) * len(aspect_dic) + rating_label(label_dic)
+
+
 def collect_aspect_label(data_set):
     label = np.zeros(len(data_set), dtype='int32')
     for i, data_entry in enumerate(data_set):
-        label[i] = aspect_dic[data_entry['aspect']]
+        label[i] = aspect_label(data_entry)
     return label
 
 
@@ -44,7 +60,7 @@ def collect_rating_label(data_set):
         #if data_entry['rating'] > 4:
             #label[i] = 4
         #else:
-        label[i] = int(data_entry['rating']) - 1
+        label[i] = rating_label(data_entry)
     return label
 
 
@@ -60,7 +76,7 @@ def load(filename):
 
 def file2mat(filename):
     transformer = TfidfTransformer()
-    vectorizer = CountVectorizer(min_df=1, ngram_range=(1,3))
+    vectorizer = CountVectorizer(min_df=1, ngram_range=(1,1))
     data = load(filename)
     reviews = [each_data['review'] for each_data in data]
     bag_of_word = vectorizer.fit_transform(reviews)
@@ -68,11 +84,6 @@ def file2mat(filename):
 
     aspect_label = collect_aspect_label(data)
     rating_label = collect_rating_label(data)
-    print (rating_label == 0).sum()
-    print (rating_label == 1).sum()
-    print (rating_label == 2).sum()
-    print (rating_label == 3).sum()
-    print (rating_label == 4).sum()
     return tfidf, aspect_label, rating_label
 
 

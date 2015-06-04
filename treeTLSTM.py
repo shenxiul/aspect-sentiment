@@ -7,6 +7,7 @@ def sigmoid(x):
 
 class TreeTLSTM:
     def __init__(self, wvec_dim, mem_dim, output_dim, num_words, mb_size=30, rho=1e-3, L=None):
+        np.random.seed(59)
         self.wvec_dim = wvec_dim
         self.mem_dim = mem_dim
         self.output_dim = output_dim
@@ -21,7 +22,6 @@ class TreeTLSTM:
             self.L = L.copy()
 
     def init_params(self):
-        np.random.seed(12341)
         self.keep = 0.5
 
         # Input layer
@@ -40,7 +40,7 @@ class TreeTLSTM:
         self.bo = np.ones(self.mem_dim) * 0
         self.Uu = np.random.randn(self.mem_dim, 2 * self.mem_dim) * 0.01
         self.bu = np.ones(self.mem_dim) * 0
-        self.V = np.random.randn(self.mem_dim, 2 * self.mem_dim, 2 * self.mem_dim) * 0.01
+        self.V = np.random.randn(self.mem_dim, 2 * self.mem_dim, 2 * self.mem_dim) * 0.1
 
         # Softmax weights
         self.Ws = np.random.randn(self.output_dim, self.mem_dim) * 0.01

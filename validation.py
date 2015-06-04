@@ -1,6 +1,7 @@
 import random
 import loadFile
 import numpy as np
+from sklearn import metrics
 
 
 def data_reshuffle(data_list):
@@ -31,20 +32,38 @@ def cross_validation(data_train, data_label, train_method, validate_method, fold
 
 def test_single(data, label, model):
     prediction = model.predict(data)
-    return float(np.sum(prediction == label)) / len(label)
+    #return float(np.sum(prediction == label)) / len(label)
+    pre, rec, f1, support = metrics.precision_recall_fscore_support(label, prediction)
+    f1 = (100*sum(f1[1:] * support[1:])/sum(support[1:]))
+    return f1
 
 
 def test_rating(data, label, model):
     prediction = model.predict(data)
-    return float(np.sum(prediction % len(loadFile.aspect_dic) == (label % len(loadFile.aspect_dic)))) / len(label)
+    #return float(np.sum(prediction % len(loadFile.aspect_dic) == (label % len(loadFile.aspect_dic)))) / len(label)
+    prediction = prediction % len(loadFile.aspect_dic)
+    label = label % len(loadFile.aspect_dic)
+    pre, rec, f1, support = metrics.precision_recall_fscore_support(label, prediction)
+    f1 = (100*sum(f1[1:] * support[1:])/sum(support[1:]))
+    return f1
 
 
 def test_aspect(data, label, model):
     prediction = model.predict(data)
-    return float(np.sum(prediction // len(loadFile.aspect_dic) == (label // len(loadFile.aspect_dic)))) / len(label)
+    #return float(np.sum(prediction // len(loadFile.aspect_dic) == (label // len(loadFile.aspect_dic)))) / len(label)
+    prediction = prediction // len(loadFile.aspect_dic)
+    label = label // len(loadFile.aspect_dic)
+    pre, rec, f1, support = metrics.precision_recall_fscore_support(label, prediction)
+    f1 = (100*sum(f1[1:] * support[1:])/sum(support[1:]))
+    return f1
 
 
 def test_mat(data, label, model):
     prediction1 = model[0].predict(data)
     prediction2 = model[1].predict(data)
-    return float(np.logical_and(prediction1 == label[:, 0], prediction2 == label[:, 1]).sum()) / len(label)
+    #return float(np.logical_and(prediction1 == label[:, 0], prediction2 == label[:, 1]).sum()) / len(label)
+    label = label[:, 0] * 100 + label[:, 1]
+    prediction = prediction1 * 100 + prediction2
+    pre, rec, f1, support = metrics.precision_recall_fscore_support(label, prediction)
+    f1 = (100*sum(f1[1:] * support[1:])/sum(support[1:]))
+    return f1

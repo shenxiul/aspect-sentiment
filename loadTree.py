@@ -4,6 +4,9 @@ import cPickle as pickle
 import nltk.tree
 
 import loadFile
+from loadFile import aspect_label
+from loadFile import rating_label
+from loadFile import pair_label
 
 UNK = "UNK"
 
@@ -53,22 +56,6 @@ def tree_depth(root):
         return 1
     else:
         return max(tree_depth(root.left), tree_depth(root.right)) + 1
-
-
-def aspect_label(label_dic):
-    return loadFile.aspect_dic[label_dic['aspect']]
-
-
-def rating_label(label_dic):
-    # if label_dic['rating'] > 4: return 2
-    # elif label_dic['rating'] == 4: return 1
-    # else: return 0
-    # if label_dic['rating'] > 4: return 4
-    return int(label_dic['rating']) - 1
-
-
-def pair_label(label_dic):
-    return aspect_label(label_dic) * len(loadFile.aspect_dic) + rating_label(label_dic)
 
 
 def traverse_tree(root, nodeFn=None, args=None):

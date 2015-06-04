@@ -74,7 +74,7 @@ def run(args=None):
     weight = np.ones(opts.output_dim)
 
     if opts.model == 'RNTN':
-        nn = RNTN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho, weight=weight)
+        nn = RNTN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho)
     elif opts.model == 'RNN':
         nn = RNN(opts.wvec_dim, opts.output_dim, opts.num_words, opts.minibatch, rho=opts.rho, weight=weight)
     elif opts.model == 'TreeLSTM':
@@ -93,7 +93,7 @@ def run(args=None):
     for e in range(opts.epochs):
         start = time.time()
         print "Running epoch %d" % e
-        sgd.run(trees)
+        sgd.run(trees, e)
         end = time.time()
         print "Time per epoch : %f" % (end - start)
 
@@ -150,7 +150,7 @@ def test(net_file, data_set, label_method, model='RNN', trees=None):
 
     confusion = [[0 for i in range(nn.output_dim)] for j in range(nn.output_dim)]
     for i, j in zip(correct, guess): confusion[i][j] += 1
-    #makeconf(confusion)
+    # makeconf(confusion)
 
     pre, rec, f1, support = metrics.precision_recall_fscore_support(correct, guess)
     #print "Cost %f, Acc %f" % (cost, correct_sum / float(len(correct)))

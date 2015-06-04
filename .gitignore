@@ -7,3 +7,4 @@ include/*
 Makefile
 *.pyc
 models/*
+figures/*

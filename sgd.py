@@ -24,7 +24,7 @@ class SGD:
         self.costt = []
         self.expcost = []
 
-    def run(self, trees):
+    def run(self, trees, epoch_idx=1):
         """
         Runs stochastic gradient descent with model as objective.
         """
@@ -76,3 +76,6 @@ class SGD:
             self.costt.append(cost)
             if self.it % 1 == 0:
                 print "Iter %d : Cost=%.4f, ExpCost=%.4f." % (self.it, cost, self.expcost[-1])
+        if epoch_idx % 2 == 0:
+            pass
+            #self.alpha /= 1.05
